@@ -23,6 +23,7 @@ import android.hardware.Camera;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Display;
+import android.view.Surface;
 import android.view.WindowManager;
 
 import com.google.zxing.client.android.PreferencesActivity;
@@ -77,10 +78,10 @@ final class CameraConfigurationManager {
     initializeTorch(parameters, prefs, safeMode);
 
     CameraConfigurationUtils.setFocus(
-        parameters,
-        prefs.getBoolean(PreferencesActivity.KEY_AUTO_FOCUS, true),
-        prefs.getBoolean(PreferencesActivity.KEY_DISABLE_CONTINUOUS_FOCUS, true),
-        safeMode);
+            parameters,
+            prefs.getBoolean(PreferencesActivity.KEY_AUTO_FOCUS, true),
+            prefs.getBoolean(PreferencesActivity.KEY_DISABLE_CONTINUOUS_FOCUS, true),
+            safeMode);
 
     if (!safeMode) {
       if (prefs.getBoolean(PreferencesActivity.KEY_INVERT_SCAN, false)) {
@@ -100,7 +101,11 @@ final class CameraConfigurationManager {
     }
 
     parameters.setPreviewSize(cameraResolution.x, cameraResolution.y);
+
+    Log.i(TAG, "Final camera parameters: " + parameters.flatten());
+
     camera.setParameters(parameters);
+
 
     Camera.Parameters afterParameters = camera.getParameters();
     Camera.Size afterSize = afterParameters.getPreviewSize();
@@ -112,8 +117,57 @@ final class CameraConfigurationManager {
     }
   }
 
+  public void setCameraDisplayOrientation(int cameraId, android.hardware.Camera camera) {
+    android.hardware.Camera.CameraInfo info =
+            new android.hardware.Camera.CameraInfo();
+    android.hardware.Camera.getCameraInfo(cameraId, info);
+    int rotation = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
+            .getRotation();
+    int degrees = 0;
+    switch (rotation) {
+      case Surface.ROTATION_0: degrees = 0; break;
+      case Surface.ROTATION_90: degrees = 90; break;
+      case Surface.ROTATION_180: degrees = 180; break;
+      case Surface.ROTATION_270: degrees = 270; break;
+    }
+
+    int result;
+    if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+      result = (info.orientation + degrees) % 360;
+      result = (360 - result) % 360;  // compensate the mirror
+    } else {  // back-facing
+      result = (info.orientation - degrees + 360) % 360;
+    }
+    camera.setDisplayOrientation(result);
+  }
+
+  public boolean isDisplayRotated() {
+    int rotation = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
+            .getRotation();
+    switch (rotation) {
+      case Surface.ROTATION_0:
+      case Surface.ROTATION_180:
+        return true;
+      case Surface.ROTATION_90:
+      case Surface.ROTATION_270:
+        return false;
+    }
+    return false;
+  }
+
   Point getCameraResolution() {
     return cameraResolution;
+  }
+
+  Point getRotatedCameraResolution() {
+    if(cameraResolution == null) {
+      return null;
+    } else if(isDisplayRotated()) {
+      //noinspection SuspiciousNameCombination
+      return new Point(cameraResolution.y, cameraResolution.x);
+    } else {
+      return cameraResolution;
+    }
   }
 
   Point getScreenResolution() {
@@ -124,7 +178,7 @@ final class CameraConfigurationManager {
     if (camera != null) {
       Camera.Parameters parameters = camera.getParameters();
       if (parameters != null) {
-        String flashMode = camera.getParameters().getFlashMode();
+        String flashMode = parameters.getFlashMode();
         return flashMode != null &&
             (Camera.Parameters.FLASH_MODE_ON.equals(flashMode) ||
              Camera.Parameters.FLASH_MODE_TORCH.equals(flashMode));

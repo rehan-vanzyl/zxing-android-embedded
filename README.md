@@ -1,4 +1,4 @@
-# ZXing Android Minimal
+# ZXing Android Embedded
 
 This is a port of the [ZXing Android Barcode Scanner application](https://github.com/zxing/zxing/) as an Android
 library project, for embedding in other Android applications. This is not affiliated with the official ZXing project.
@@ -11,6 +11,11 @@ There are however some cases in which it is not feasible:
 * You need to customise the UI.
 
 In these cases, this library may be more suitable.
+
+**Note: A rewrite of a large part of the codebase is currently in progress on the
+[3.x branch](https://github.com/journeyapps/zxing-android-embedded/tree/3.x). This
+will provide much more control over the UI for applications that require it. Any
+new contributions should be done on the 3.x branch.**
 
 ## Adding aar dependency with Gradle
 
@@ -29,21 +34,21 @@ repositories {
 
 dependencies {
     // Supports Android 4.0.3 and later (API level 15)
-    compile 'com.journeyapps:zxing-android-embedded:2.0.1@aar'
+    compile 'com.journeyapps:zxing-android-embedded:2.3.0@aar'
 
     // Supports Android 2.1 and later (API level 7), but not optimal for later Android versions.
     // If you only plan on supporting Android 4.0.3 and up, you don't need to include this.
-    compile 'com.journeyapps:zxing-android-legacy:2.0.1@aar'
+    compile 'com.journeyapps:zxing-android-legacy:2.3.0@aar'
 
-    // Convenience library to launch the scanning and encoding Activities.
+    // Convenience library to launch the scanning Activities.
     // It automatically picks the best scanning library from the above two, depending on the
     // Android version and what is available.
-    compile 'com.journeyapps:zxing-android-integration:2.0.1@aar'
+    compile 'com.journeyapps:zxing-android-integration:2.3.0@aar'
 
     // Version 3.0.x of zxing core contains some code that is not compatible on Android 2.2 and earlier.
     // This mostly affects encoding, but you should test if you plan to support these versions.
     // Older versions e.g. 2.2 may also work if you need support for older Android versions.
-    compile 'com.google.zxing:core:3.0.1'
+    compile 'com.google.zxing:core:3.2.0'
 }
 ```
 

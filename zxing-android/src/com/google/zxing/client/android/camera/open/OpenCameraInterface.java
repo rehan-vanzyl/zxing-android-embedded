@@ -26,23 +26,20 @@ public final class OpenCameraInterface {
   private OpenCameraInterface() {
   }
 
-  
-  /**
-   * Opens the requested camera with {@link Camera#open(int)}, if one exists.
-   *
-   * @param cameraId camera ID of the camera to use. A negative value means "no preference"
-   * @return handle to {@link Camera} that was opened
-   */
-  public static Camera open(int cameraId) {
-    
+  /** For {@link #open(int)}, means no preference for which camera to open. */
+  public static final int NO_REQUESTED_CAMERA = -1;
+
+  public static int getCameraId(int requestedId) {
     int numCameras = Camera.getNumberOfCameras();
     if (numCameras == 0) {
       Log.w(TAG, "No cameras!");
-      return null;
+      return -1;
     }
-	  
+
+    int cameraId = requestedId;
+
     boolean explicitRequest = cameraId >= 0;
-	  
+
     if (!explicitRequest) {
       // Select a camera if no explicit camera requested
       int index = 0;
@@ -54,35 +51,34 @@ public final class OpenCameraInterface {
         }
         index++;
       }
-      
+
       cameraId = index;
     }
-	  
-    Camera camera;
+
     if (cameraId < numCameras) {
-      Log.i(TAG, "Opening camera #" + cameraId);
-      camera = Camera.open(cameraId);
+      return cameraId;
     } else {
       if (explicitRequest) {
-        Log.w(TAG, "Requested camera does not exist: " + cameraId);
-        camera = null;
+        return -1;
       } else {
-        Log.i(TAG, "No camera facing back; returning camera #0");
-        camera = Camera.open(0);
+        return 0;
       }
     }
-    
-    return camera;
   }
-  
-  
   /**
-   * Opens a rear-facing camera with {@link Camera#open(int)}, if one exists, or opens camera 0.
+   * Opens the requested camera with {@link Camera#open(int)}, if one exists.
    *
+   * @param requestedId camera ID of the camera to use. A negative value
+   *  or {@link #NO_REQUESTED_CAMERA} means "no preference"
    * @return handle to {@link Camera} that was opened
    */
-  public static Camera open() {
-    return open(-1);
+  public static Camera open(int requestedId) {
+    int cameraId = getCameraId(requestedId);
+    if(cameraId == -1) {
+      return null;
+    } else {
+      return Camera.open(cameraId);
+    }
   }
-
+  
 }

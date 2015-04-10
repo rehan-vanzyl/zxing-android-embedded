@@ -52,7 +52,7 @@ public final class CameraManager {
   private Rect framingRectInPreview;
   private boolean initialized;
   private boolean previewing;
-  private int requestedCameraId = -1;
+  private int requestedCameraId = OpenCameraInterface.NO_REQUESTED_CAMERA;
   private int requestedFramingRectWidth;
   private int requestedFramingRectHeight;
   /**
@@ -76,13 +76,8 @@ public final class CameraManager {
   public synchronized void openDriver(SurfaceHolder holder) throws IOException {
     Camera theCamera = camera;
     if (theCamera == null) {
-	  
-      if (requestedCameraId >= 0) {
-        theCamera = OpenCameraInterface.open(requestedCameraId);
-      } else {
-        theCamera = OpenCameraInterface.open();
-      }
-      
+
+      theCamera = OpenCameraInterface.open(requestedCameraId);
       if (theCamera == null) {
         throw new IOException();
       }
@@ -102,7 +97,9 @@ public final class CameraManager {
 
     Camera.Parameters parameters = theCamera.getParameters();
     String parametersFlattened = parameters == null ? null : parameters.flatten(); // Save these, temporarily
+
     try {
+      configManager.setCameraDisplayOrientation(OpenCameraInterface.getCameraId(requestedCameraId), theCamera);
       configManager.setDesiredCameraParameters(theCamera, false);
     } catch (RuntimeException re) {
       // Driver failed
@@ -121,6 +118,8 @@ public final class CameraManager {
         }
       }
     }
+
+
 
   }
 
@@ -257,7 +256,7 @@ public final class CameraManager {
         return null;
       }
       Rect rect = new Rect(framingRect);
-      Point cameraResolution = configManager.getCameraResolution();
+      Point cameraResolution = configManager.getRotatedCameraResolution();
       Point screenResolution = configManager.getScreenResolution();
       if (cameraResolution == null || screenResolution == null) {
         // Called early, before init even finished
@@ -280,11 +279,7 @@ public final class CameraManager {
    * @param cameraId camera ID of the camera to use. A negative value means "no preference".
    */
   public synchronized void setManualCameraId(int cameraId) {
-    if (initialized) {
-      throw new IllegalStateException();
-    } else {
-      requestedCameraId = cameraId;
-    }
+    requestedCameraId = cameraId;
   }
   
   /**
@@ -328,9 +323,38 @@ public final class CameraManager {
     if (rect == null) {
       return null;
     }
+
     // Go ahead and assume it's YUV rather than die.
-    return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top,
-                                        rect.width(), rect.height(), false);
+    if(configManager.isDisplayRotated()) {
+      byte[] rotated = rotate(data, width, height);
+      //noinspection SuspiciousNameCombination
+      return new PlanarYUVLuminanceSource(rotated, height, width, rect.left, rect.top, rect.width(), rect.height(), false);
+    } else {
+      return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top, rect.width(), rect.height(), false);
+    }
+  }
+
+  /**
+   * Rotate an image by 90 degrees CCW.
+   *
+   * @param data the image data, in with the first width * height bytes being the luminance data.
+   * @param imageWidth the width of the image
+   * @param imageHeight the height of the image
+   * @return the rotated bytes
+   */
+  public static byte[] rotate(byte[] data, int imageWidth, int imageHeight) {
+    // Adapted from http://stackoverflow.com/a/15775173
+    // data may contain more than just y (u and v), but we are only interested in the y section.
+    //
+    byte[] yuv = new byte[imageWidth * imageHeight];
+    int i = 0;
+    for (int x = 0; x < imageWidth; x++) {
+      for (int y = imageHeight - 1; y >= 0; y--) {
+        yuv[i] = data[y * imageWidth + x];
+        i++;
+      }
+    }
+    return yuv;
   }
 
 }
